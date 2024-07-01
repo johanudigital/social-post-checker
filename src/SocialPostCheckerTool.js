@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { debounce } from 'lodash';
 import logo from './assets/logo.jpeg';
 import { franc } from 'franc-min';
@@ -12,7 +12,6 @@ const SocialPostCheckerTool = () => {
   const [aidaScore, setAidaScore] = useState({ attention: 0, interest: 0, desire: 0, action: 0 });
   const [engagementScore, setEngagementScore] = useState(0);
   const [feedback, setFeedback] = useState([]);
-  const [sentimentScore, setSentimentScore] = useState(0);
 
   const platformMaxLengths = useMemo(() => ({
     twitter: 280,
@@ -42,7 +41,7 @@ const SocialPostCheckerTool = () => {
     return lang ? (lang.name === 'Dutch' ? 'nl' : 'en') : 'en';
   };
 
-  const analyzePost = useCallback(debounce(async () => {
+  const analyzePost = useCallback(debounce(() => {
     let feedbackItems = [];
     let attention = 0, interest = 0, desire = 0, action = 0;
     let engagement = 0;
@@ -54,7 +53,7 @@ const SocialPostCheckerTool = () => {
     const charCount = postContent.length;
     const maxLength = platformMaxLengths[platform];
     const paragraphs = postContent.split('\n\n').filter(Boolean);
-    
+
     // Check post length
     if (charCount > maxLength) {
       feedbackItems.push({ type: 'error', message: `Post is too long for ${platform}. Maximum length is ${maxLength} characters.` });
@@ -97,7 +96,7 @@ const SocialPostCheckerTool = () => {
     Object.entries(keywords).forEach(([category, words]) => {
       words.forEach(word => {
         if (postContent.toLowerCase().includes(word.toLowerCase())) {
-          switch(category) {
+          switch (category) {
             case 'attention':
               attention += 10;
               break;
@@ -141,16 +140,6 @@ const SocialPostCheckerTool = () => {
     action = Math.min(action, 100);
     engagement = Math.min(engagement, 100);
 
-    // Sentiment analysis
-    const sentimentResult = await fetchSentiment(postContent);
-    setSentimentScore(Math.min(Math.max(sentimentResult.score * 10, 0), 100)); // Normalizing score to a 0-100 scale
-
-    // Keyword extraction
-    const doc = nlp(postContent);
-    doc.topics().out('array').forEach(topic => {
-      feedbackItems.push({ type: 'info', message: `Identified keyword: ${topic}` });
-    });
-
     // Overall AIDA feedback
     if (attention < 30) feedbackItems.push({ type: 'error', message: "Your post needs a stronger attention-grabbing element." });
     if (interest < 30) feedbackItems.push({ type: 'error', message: "Try to make your post more interesting or intriguing." });
@@ -161,18 +150,7 @@ const SocialPostCheckerTool = () => {
     setAidaScore({ attention, interest, desire, action });
     setEngagementScore(engagement);
     setFeedback(feedbackItems);
-  }, 500), [postContent, platform, language, platformMaxLengths]);
-
-  const fetchSentiment = async (text) => {
-    // Implement sentiment analysis using a service like Hugging Face's Transformers or any sentiment API
-    const response = await fetch('https://api.yoursentimentservice.com/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    });
-    const data = await response.json();
-    return data;
-  };
+  }, 500), [postContent, platform, language, platformMaxLengths, languageKeywords]);
 
   const getProgressBarColor = useCallback((score) => {
     if (score < 30) return 'red';
@@ -232,13 +210,6 @@ const SocialPostCheckerTool = () => {
           <div
             className="progress-bar-inner"
             style={{ width: `${engagementScore}%`, backgroundColor: getProgressBarColor(engagementScore) }}
-          ></div>
-        </div>
-        <h2>Sentiment Score: {sentimentScore}/100</h2>
-        <div className="progress-bar">
-          <div
-            className="progress-bar-inner"
-            style={{ width: `${sentimentScore}%`, backgroundColor: getProgressBarColor(sentimentScore) }}
           ></div>
         </div>
       </div>
