@@ -5,6 +5,7 @@ import logo from './assets/logo.jpeg';
 const SocialPostCheckerTool = () => {
   const [postContent, setPostContent] = useState('');
   const [platform, setPlatform] = useState('twitter');
+  const [language, setLanguage] = useState('en');
   const [aidaScore, setAidaScore] = useState({ attention: 0, interest: 0, desire: 0, action: 0 });
   const [engagementScore, setEngagementScore] = useState(0);
   const [feedback, setFeedback] = useState([]);
@@ -16,16 +17,32 @@ const SocialPostCheckerTool = () => {
     linkedin: 3000,
   }), []);
 
+  const languageKeywords = useMemo(() => ({
+    en: {
+      attention: ['wow', 'amazing', 'exclusive', 'breaking', 'urgent'],
+      interest: ['why', 'how', 'what if', 'imagine', 'discover', 'curious'],
+      desire: ['limited', 'special', 'unique', 'new', 'improved', 'best'],
+      action: ['click', 'buy', 'subscribe', 'sign up', 'learn more', 'visit', 'try'],
+    },
+    nl: {
+      attention: ['wow', 'verbazingwekkend', 'exclusief', 'breaking', 'dringend'],
+      interest: ['waarom', 'hoe', 'wat als', 'stel je voor', 'ontdek', 'nieuwsgierig'],
+      desire: ['beperkt', 'speciaal', 'uniek', 'nieuw', 'verbeterd', 'beste'],
+      action: ['klik', 'koop', 'abonneer', 'meld je aan', 'leer meer', 'bezoek', 'probeer'],
+    },
+  }), []);
+
   const analyzePost = useCallback(debounce(() => {
     let feedbackItems = [];
     let attention = 0, interest = 0, desire = 0, action = 0;
     let engagement = 0;
 
-    // Check post length
     const wordCount = postContent.split(/\s+/).filter(Boolean).length;
     const charCount = postContent.length;
     const maxLength = platformMaxLengths[platform];
+    const paragraphs = postContent.split('\n\n').filter(Boolean);
     
+    // Check post length
     if (charCount > maxLength) {
       feedbackItems.push({ type: 'error', message: `Post is too long for ${platform}. Maximum length is ${maxLength} characters.` });
     } else if (charCount > maxLength * 0.9) {
@@ -33,6 +50,19 @@ const SocialPostCheckerTool = () => {
     } else {
       feedbackItems.push({ type: 'success', message: `Post length is good for ${platform}.` });
       engagement += 10;
+    }
+
+    // Check paragraph structure
+    if (paragraphs.length === 1 && wordCount > 30) {
+      feedbackItems.push({ type: 'warning', message: "Consider breaking your content into paragraphs for better readability." });
+    } else if (paragraphs.length > 1) {
+      feedbackItems.push({ type: 'success', message: "Good use of paragraphs to structure your content." });
+      engagement += 5;
+    }
+
+    // Check for condensed content
+    if (wordCount / paragraphs.length > 50) {
+      feedbackItems.push({ type: 'warning', message: "Your paragraphs seem long. Consider breaking them up for easier reading." });
     }
 
     // Attention
@@ -49,31 +79,28 @@ const SocialPostCheckerTool = () => {
       feedbackItems.push({ type: 'success', message: "Good use of question or exclamation marks to grab attention." });
     }
 
-    // Interest
-    const interestingWords = ['why', 'how', 'what if', 'imagine', 'discover'];
-    interestingWords.forEach(word => {
-      if (postContent.toLowerCase().includes(word)) {
-        interest += 10;
-        feedbackItems.push({ type: 'success', message: `Good use of the interest-piquing word "${word}".` });
-      }
-    });
-
-    // Desire
-    const desireWords = ['exclusive', 'limited', 'special', 'unique', 'new'];
-    desireWords.forEach(word => {
-      if (postContent.toLowerCase().includes(word)) {
-        desire += 10;
-        feedbackItems.push({ type: 'success', message: `Great use of the desire-building word "${word}".` });
-      }
-    });
-
-    // Action
-    const actionWords = ['click', 'buy', 'subscribe', 'sign up', 'learn more', 'visit'];
-    actionWords.forEach(word => {
-      if (postContent.toLowerCase().includes(word)) {
-        action += 15;
-        feedbackItems.push({ type: 'success', message: `Excellent call-to-action with "${word}".` });
-      }
+    // AIDA model check using language-specific keywords
+    const keywords = languageKeywords[language];
+    Object.entries(keywords).forEach(([category, words]) => {
+      words.forEach(word => {
+        if (postContent.toLowerCase().includes(word.toLowerCase())) {
+          switch(category) {
+            case 'attention':
+              attention += 10;
+              break;
+            case 'interest':
+              interest += 10;
+              break;
+            case 'desire':
+              desire += 10;
+              break;
+            case 'action':
+              action += 15;
+              break;
+          }
+          feedbackItems.push({ type: 'success', message: `Good use of the ${category}-building word "${word}".` });
+        }
+      });
     });
 
     // Engagement factors
@@ -111,7 +138,7 @@ const SocialPostCheckerTool = () => {
     setAidaScore({ attention, interest, desire, action });
     setEngagementScore(engagement);
     setFeedback(feedbackItems);
-  }, 500), [postContent, platform, platformMaxLengths]);
+  }, 500), [postContent, platform, language, platformMaxLengths, languageKeywords]);
 
   const getProgressBarColor = useCallback((score) => {
     if (score < 30) return 'red';
@@ -140,6 +167,10 @@ const SocialPostCheckerTool = () => {
           <option value="facebook">Facebook</option>
           <option value="instagram">Instagram</option>
           <option value="linkedin">LinkedIn</option>
+        </select>
+        <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+          <option value="en">English</option>
+          <option value="nl">Dutch</option>
         </select>
       </div>
       <div className="input-group">
