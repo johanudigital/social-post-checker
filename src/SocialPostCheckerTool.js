@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { debounce } from 'lodash';
 import logo from './assets/logo.jpeg';
-import langdetect from 'langdetect';
+import franc from 'franc-min';
+import langs from 'langs';
+import nlp from 'compromise';
 
 const SocialPostCheckerTool = () => {
   const [postContent, setPostContent] = useState('');
@@ -11,16 +13,6 @@ const SocialPostCheckerTool = () => {
   const [engagementScore, setEngagementScore] = useState(0);
   const [feedback, setFeedback] = useState([]);
   const [sentimentScore, setSentimentScore] = useState(0);
-
-  useEffect(() => {
-    async function loadSpaCy() {
-      const spacy = await import('spacy');
-      const nlp = spacy.load('en_core_web_sm');
-      setNlp(nlp);
-    }
-
-    loadSpaCy();
-  }, []);
 
   const platformMaxLengths = useMemo(() => ({
     twitter: 280,
@@ -45,8 +37,9 @@ const SocialPostCheckerTool = () => {
   }), []);
 
   const detectLanguage = (text) => {
-    const detectedLang = langdetect.detectOne(text);
-    return detectedLang === 'nl' ? 'nl' : 'en';
+    const detectedLangCode = franc(text);
+    const lang = langs.where("3", detectedLangCode);
+    return lang ? (lang.name === 'Dutch' ? 'nl' : 'en') : 'en';
   };
 
   const analyzePost = useCallback(debounce(async () => {
@@ -154,8 +147,8 @@ const SocialPostCheckerTool = () => {
 
     // Keyword extraction
     const doc = nlp(postContent);
-    doc.ents.forEach(ent => {
-      feedbackItems.push({ type: 'info', message: `Identified keyword: ${ent.text} (${ent.label_})` });
+    doc.topics().out('array').forEach(topic => {
+      feedbackItems.push({ type: 'info', message: `Identified keyword: ${topic}` });
     });
 
     // Overall AIDA feedback
@@ -168,7 +161,7 @@ const SocialPostCheckerTool = () => {
     setAidaScore({ attention, interest, desire, action });
     setEngagementScore(engagement);
     setFeedback(feedbackItems);
-  }, 500), [postContent, platform, language, platformMaxLengths, nlp]);
+  }, 500), [postContent, platform, language, platformMaxLengths]);
 
   const fetchSentiment = async (text) => {
     // Implement sentiment analysis using a service like Hugging Face's Transformers or any sentiment API
