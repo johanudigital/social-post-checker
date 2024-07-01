@@ -1,20 +1,20 @@
 {
   "files": {
     "main.css": "/social-post-checker/static/css/main.43c765ea.chunk.css",
-    "main.js": "/social-post-checker/static/js/main.777d5d54.chunk.js",
-    "main.js.map": "/social-post-checker/static/js/main.777d5d54.chunk.js.map",
+    "main.js": "/social-post-checker/static/js/main.0856982b.chunk.js",
+    "main.js.map": "/social-post-checker/static/js/main.0856982b.chunk.js.map",
     "runtime-main.js": "/social-post-checker/static/js/runtime-main.dced285c.js",
     "runtime-main.js.map": "/social-post-checker/static/js/runtime-main.dced285c.js.map",
-    "static/js/2.3a9b2299.chunk.js": "/social-post-checker/static/js/2.3a9b2299.chunk.js",
-    "static/js/2.3a9b2299.chunk.js.map": "/social-post-checker/static/js/2.3a9b2299.chunk.js.map",
+    "static/js/2.a7a694af.chunk.js": "/social-post-checker/static/js/2.a7a694af.chunk.js",
+    "static/js/2.a7a694af.chunk.js.map": "/social-post-checker/static/js/2.a7a694af.chunk.js.map",
     "index.html": "/social-post-checker/index.html",
     "static/css/main.43c765ea.chunk.css.map": "/social-post-checker/static/css/main.43c765ea.chunk.css.map",
-    "static/js/2.3a9b2299.chunk.js.LICENSE.txt": "/social-post-checker/static/js/2.3a9b2299.chunk.js.LICENSE.txt"
+    "static/js/2.a7a694af.chunk.js.LICENSE.txt": "/social-post-checker/static/js/2.a7a694af.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime-main.dced285c.js",
-    "static/js/2.3a9b2299.chunk.js",
+    "static/js/2.a7a694af.chunk.js",
     "static/css/main.43c765ea.chunk.css",
-    "static/js/main.777d5d54.chunk.js"
+    "static/js/main.0856982b.chunk.js"
   ]
 }
