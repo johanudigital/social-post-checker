@@ -20,21 +20,6 @@ const SocialPostCheckerTool = () => {
     linkedin: 3000,
   }), []);
 
-  const languageKeywords = useMemo(() => ({
-    en: {
-      attention: ['wow', 'amazing', 'exclusive', 'breaking', 'urgent'],
-      interest: ['why', 'how', 'what if', 'imagine', 'discover', 'curious'],
-      desire: ['limited', 'special', 'unique', 'new', 'improved', 'best'],
-      action: ['click', 'buy', 'subscribe', 'sign up', 'learn more', 'visit', 'try'],
-    },
-    nl: {
-      attention: ['wow', 'verbazingwekkend', 'exclusief', 'breaking', 'dringend'],
-      interest: ['waarom', 'hoe', 'wat als', 'stel je voor', 'ontdek', 'nieuwsgierig'],
-      desire: ['beperkt', 'speciaal', 'uniek', 'nieuw', 'verbeterd', 'beste'],
-      action: ['klik', 'koop', 'abonneer', 'meld je aan', 'leer meer', 'bezoek', 'probeer'],
-    },
-  }), []);
-
   const detectLanguage = (text) => {
     const detectedLangCode = franc(text);
     const lang = langs.where("3", detectedLangCode);
@@ -49,10 +34,11 @@ const SocialPostCheckerTool = () => {
     const detectedLanguage = detectLanguage(postContent);
     setLanguage(detectedLanguage);
 
-    const wordCount = postContent.split(/\s+/).filter(Boolean).length;
+    const doc = nlp(postContent);
+    const wordCount = doc.wordCount();
     const charCount = postContent.length;
     const maxLength = platformMaxLengths[platform];
-    const paragraphs = postContent.split('\n\n').filter(Boolean);
+    const sentences = doc.sentences().out('array');
 
     // Check post length
     if (charCount > maxLength) {
@@ -64,73 +50,78 @@ const SocialPostCheckerTool = () => {
       engagement += 10;
     }
 
-    // Check paragraph structure
-    if (paragraphs.length === 1 && wordCount > 30) {
-      feedbackItems.push({ type: 'warning', message: "Consider breaking your content into paragraphs for better readability." });
-    } else if (paragraphs.length > 1) {
-      feedbackItems.push({ type: 'success', message: "Good use of paragraphs to structure your content." });
+    // Check sentence structure
+    if (sentences.length === 1 && wordCount > 30) {
+      feedbackItems.push({ type: 'warning', message: "Consider breaking your content into multiple sentences for better readability." });
+    } else if (sentences.length > 1) {
+      feedbackItems.push({ type: 'success', message: "Good use of multiple sentences to structure your content." });
       engagement += 5;
     }
 
-    // Check for condensed content
-    if (wordCount / paragraphs.length > 50) {
-      feedbackItems.push({ type: 'warning', message: "Your paragraphs seem long. Consider breaking them up for easier reading." });
-    }
-
-    // Attention
-    if (postContent.match(/^(🚨|💥|🎉|📢|❗️)/)) {
-      attention += 25;
-      feedbackItems.push({ type: 'success', message: "Great use of attention-grabbing emoji at the start!" });
-    }
-    if (postContent.match(/^[A-Z\s!?]+/)) {
+    // Analyze sentiment
+    const sentiment = doc.sentiment();
+    if (sentiment > 0.5) {
       attention += 20;
-      feedbackItems.push({ type: 'success', message: "Strong opening with capital letters or punctuation." });
-    }
-    if (postContent.match(/\?|!/) && attention < 45) {
+      feedbackItems.push({ type: 'success', message: "Your post has a positive tone, which can grab attention." });
+    } else if (sentiment < -0.5) {
       attention += 15;
-      feedbackItems.push({ type: 'success', message: "Good use of question or exclamation marks to grab attention." });
+      feedbackItems.push({ type: 'info', message: "Your post has a negative tone. This can be attention-grabbing but use cautiously." });
     }
 
-    // AIDA model check using language-specific keywords
-    const keywords = languageKeywords[detectedLanguage];
-    Object.entries(keywords).forEach(([category, words]) => {
-      words.forEach(word => {
-        if (postContent.toLowerCase().includes(word.toLowerCase())) {
-          switch (category) {
-            case 'attention':
-              attention += 10;
-              break;
-            case 'interest':
-              interest += 10;
-              break;
-            case 'desire':
-              desire += 10;
-              break;
-            case 'action':
-              action += 15;
-              break;
-          }
-          feedbackItems.push({ type: 'success', message: `Good use of the ${category}-building word "${word}".` });
-        }
-      });
-    });
-
-    // Engagement factors
-    if (postContent.match(/\[.*?\]/)) {
-      engagement += 15;
-      feedbackItems.push({ type: 'success', message: "Good use of brackets to highlight important information." });
+    // Check for questions (Interest)
+    const questions = doc.questions().out('array');
+    if (questions.length > 0) {
+      interest += 20;
+      feedbackItems.push({ type: 'success', message: "Good use of questions to generate interest." });
     }
-    if (postContent.includes('#')) {
+
+    // Check for imperatives (Action)
+    const imperatives = doc.sentences().filter(s => s.has('#Imperative')).out('array');
+    if (imperatives.length > 0) {
+      action += 25;
+      feedbackItems.push({ type: 'success', message: "Strong call-to-action with imperative sentences." });
+    }
+
+    // Check for superlatives (Desire)
+    const superlatives = doc.superlatives().out('array');
+    if (superlatives.length > 0) {
+      desire += 20;
+      feedbackItems.push({ type: 'success', message: "Good use of superlatives to create desire." });
+    }
+
+    // Check for named entities (Interest/Engagement)
+    const entities = doc.topics().out('array');
+    if (entities.length > 0) {
+      interest += 15;
+      engagement += 10;
+      feedbackItems.push({ type: 'success', message: "Mentioning specific entities can increase interest and engagement." });
+    }
+
+    // Check for hashtags and mentions
+    const hashtags = postContent.match(/#\w+/g) || [];
+    const mentions = postContent.match(/@\w+/g) || [];
+    if (hashtags.length > 0) {
       engagement += 10;
       feedbackItems.push({ type: 'success', message: "Hashtags can increase engagement and discoverability." });
     }
-    if (postContent.includes('@')) {
+    if (mentions.length > 0) {
       engagement += 10;
       feedbackItems.push({ type: 'success', message: "Mentioning others can boost engagement and reach." });
     }
+
+    // Check for URLs
     if (postContent.match(/https?:\/\/\S+/)) {
       engagement += 5;
       feedbackItems.push({ type: 'success', message: "Including a link can drive traffic and engagement." });
+    }
+
+    // Analyze readability
+    const avgWordLength = doc.terms().out('array').reduce((sum, term) => sum + term.length, 0) / wordCount;
+    if (avgWordLength > 6) {
+      feedbackItems.push({ type: 'warning', message: "Your post contains many long words. Consider simplifying for better readability." });
+    } else {
+      engagement += 5;
+      feedbackItems.push({ type: 'success', message: "Good use of concise language for readability." });
     }
 
     // Cap scores at 100
@@ -150,9 +141,9 @@ const SocialPostCheckerTool = () => {
     setAidaScore({ attention, interest, desire, action });
     setEngagementScore(engagement);
     setFeedback(feedbackItems);
-  }, 500), [postContent, platform, language, platformMaxLengths, languageKeywords]);
+  }, 500), [postContent, platform, platformMaxLengths]);
 
-  const getProgressBarColor = useCallback((score) => {
+const getProgressBarColor = useCallback((score) => {
     if (score < 30) return 'red';
     if (score < 70) return 'orange';
     return 'green';
