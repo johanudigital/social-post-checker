@@ -1,5 +1,5 @@
 {
-  "name": "social-post-checkero",
+  "name": "social-post-checker",
   "version": "1.0.0",
   "homepage": "https://johanudigital.github.io/social-post-checker",
   "main": "src/index.js",
