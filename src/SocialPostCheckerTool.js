@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { debounce } from 'lodash';
 import logo from './assets/logo.jpeg';
+import langdetect from 'langdetect';
 
 const SocialPostCheckerTool = () => {
   const [postContent, setPostContent] = useState('');
@@ -9,6 +10,17 @@ const SocialPostCheckerTool = () => {
   const [aidaScore, setAidaScore] = useState({ attention: 0, interest: 0, desire: 0, action: 0 });
   const [engagementScore, setEngagementScore] = useState(0);
   const [feedback, setFeedback] = useState([]);
+  const [sentimentScore, setSentimentScore] = useState(0);
+
+  useEffect(() => {
+    async function loadSpaCy() {
+      const spacy = await import('spacy');
+      const nlp = spacy.load('en_core_web_sm');
+      setNlp(nlp);
+    }
+
+    loadSpaCy();
+  }, []);
 
   const platformMaxLengths = useMemo(() => ({
     twitter: 280,
@@ -32,10 +44,18 @@ const SocialPostCheckerTool = () => {
     },
   }), []);
 
-  const analyzePost = useCallback(debounce(() => {
+  const detectLanguage = (text) => {
+    const detectedLang = langdetect.detectOne(text);
+    return detectedLang === 'nl' ? 'nl' : 'en';
+  };
+
+  const analyzePost = useCallback(debounce(async () => {
     let feedbackItems = [];
     let attention = 0, interest = 0, desire = 0, action = 0;
     let engagement = 0;
+
+    const detectedLanguage = detectLanguage(postContent);
+    setLanguage(detectedLanguage);
 
     const wordCount = postContent.split(/\s+/).filter(Boolean).length;
     const charCount = postContent.length;
@@ -80,7 +100,7 @@ const SocialPostCheckerTool = () => {
     }
 
     // AIDA model check using language-specific keywords
-    const keywords = languageKeywords[language];
+    const keywords = languageKeywords[detectedLanguage];
     Object.entries(keywords).forEach(([category, words]) => {
       words.forEach(word => {
         if (postContent.toLowerCase().includes(word.toLowerCase())) {
@@ -128,6 +148,16 @@ const SocialPostCheckerTool = () => {
     action = Math.min(action, 100);
     engagement = Math.min(engagement, 100);
 
+    // Sentiment analysis
+    const sentimentResult = await fetchSentiment(postContent);
+    setSentimentScore(Math.min(Math.max(sentimentResult.score * 10, 0), 100)); // Normalizing score to a 0-100 scale
+
+    // Keyword extraction
+    const doc = nlp(postContent);
+    doc.ents.forEach(ent => {
+      feedbackItems.push({ type: 'info', message: `Identified keyword: ${ent.text} (${ent.label_})` });
+    });
+
     // Overall AIDA feedback
     if (attention < 30) feedbackItems.push({ type: 'error', message: "Your post needs a stronger attention-grabbing element." });
     if (interest < 30) feedbackItems.push({ type: 'error', message: "Try to make your post more interesting or intriguing." });
@@ -138,7 +168,18 @@ const SocialPostCheckerTool = () => {
     setAidaScore({ attention, interest, desire, action });
     setEngagementScore(engagement);
     setFeedback(feedbackItems);
-  }, 500), [postContent, platform, language, platformMaxLengths, languageKeywords]);
+  }, 500), [postContent, platform, language, platformMaxLengths, nlp]);
+
+  const fetchSentiment = async (text) => {
+    // Implement sentiment analysis using a service like Hugging Face's Transformers or any sentiment API
+    const response = await fetch('https://api.yoursentimentservice.com/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await response.json();
+    return data;
+  };
 
   const getProgressBarColor = useCallback((score) => {
     if (score < 30) return 'red';
@@ -151,6 +192,7 @@ const SocialPostCheckerTool = () => {
       {item.type === 'success' && '✅ '}
       {item.type === 'error' && '❌ '}
       {item.type === 'warning' && '⚠️ '}
+      {item.type === 'info' && 'ℹ️ '}
       {item.message}
     </li>
   ), []);
@@ -167,10 +209,6 @@ const SocialPostCheckerTool = () => {
           <option value="facebook">Facebook</option>
           <option value="instagram">Instagram</option>
           <option value="linkedin">LinkedIn</option>
-        </select>
-        <select value={language} onChange={(e) => setLanguage(e.target.value)}>
-          <option value="en">English</option>
-          <option value="nl">Dutch</option>
         </select>
       </div>
       <div className="input-group">
@@ -201,6 +239,13 @@ const SocialPostCheckerTool = () => {
           <div
             className="progress-bar-inner"
             style={{ width: `${engagementScore}%`, backgroundColor: getProgressBarColor(engagementScore) }}
+          ></div>
+        </div>
+        <h2>Sentiment Score: {sentimentScore}/100</h2>
+        <div className="progress-bar">
+          <div
+            className="progress-bar-inner"
+            style={{ width: `${sentimentScore}%`, backgroundColor: getProgressBarColor(sentimentScore) }}
           ></div>
         </div>
       </div>
