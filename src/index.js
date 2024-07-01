@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { BrowserRouter as Router } from 'react-router-dom';
-import SocialPostCheckerTool from './SocialPostCheckerTool';
+import SocialPostCheckerTool from './social-post-checker';
 import './index.css';
 
 ReactDOM.render(
