@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { debounce } from 'lodash';
 import logo from './assets/logo.jpeg';
-import franc from 'franc-min';
+import { franc } from 'franc-min';
 import langs from 'langs';
 import nlp from 'compromise';
 
